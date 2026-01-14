@@ -12,19 +12,32 @@
       box-sizing: border-box;
     }
 
+    /* ФИКС СКРОЛЛА */
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+
     body {
       background: #000;
       min-height: 100vh;
+      width: 100vw;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       font-family: 'Segoe UI', system-ui, sans-serif;
       color: white;
-      overflow-x: hidden;
       padding: 20px;
       touch-action: manipulation;
-      position: relative;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: auto;
       z-index: 1;
     }
 
@@ -365,7 +378,9 @@
   </div>
 
   <script>
+    // ✅ ИСПРАВЛЕНО: убраны пробелы
     const API_URL = 'https://clicker-backend-d8wx.onrender.com';
+    
     let tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
