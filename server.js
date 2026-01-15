@@ -11,27 +11,52 @@ let usersData = {};
 // Получить данные игрока
 app.get('/api/user/:userId', (req, res) => {
   const userId = req.params.userId;
-  const data = usersData[userId] || { coins: 0 };
+  const data = usersData[userId] || { 
+    coins: 0,
+    stars: 0,
+    level: 1,
+    avatarStyle: {},
+    caughtStars: 0,
+    caughtSuperStars: 0,
+    username: 'Player'
+  };
   res.json(data);
 });
 
 // Обновить счёт
 app.post('/api/update-score', (req, res) => {
-  const { userId, username, coins } = req.body;
-  if (!userId || coins == null) {
-    return res.status(400).json({ error: 'Missing data' });
+  const { 
+    userId, 
+    username, 
+    coins = 0,
+    stars = 0,
+    level = 1,
+    avatarStyle = {},
+    caughtStars = 0,
+    caughtSuperStars = 0
+  } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'Missing userId' });
   }
 
-  // Сохраняем данные
-  usersData[userId] = { coins, username };
+  // Сохраняем ВСЁ
+  usersData[userId] = { 
+    coins, 
+    stars, 
+    level, 
+    avatarStyle, 
+    caughtStars, 
+    caughtSuperStars,
+    username
+  };
 
   // Обновляем лидерборд
   let player = leaderboard.find(p => p.id === userId);
   if (player) {
-    player.coins = coins;
-    player.name = username;
+    Object.assign(player, { coins, username, avatarStyle, level });
   } else {
-    leaderboard.push({ id: userId, name: username, coins });
+    leaderboard.push({ id: userId, name: username, coins, avatarStyle, level });
   }
 
   leaderboard.sort((a, b) => b.coins - a.coins);
