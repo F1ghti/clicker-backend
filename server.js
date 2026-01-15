@@ -40,6 +40,42 @@ app.post('/api/update-score', (req, res) => {
     return res.status(400).json({ error: 'Missing userId' });
   }
 
+  // Обновление ника
+app.post('/api/update-nickname', (req, res) => {
+  const { userId, newNick } = req.body;
+  
+  if (!userId || !newNick) {
+    return res.status(400).json({ error: 'Missing data' });
+  }
+  
+  // Валидация (повторяем фронтенд-проверку)
+  if (newNick.length < 3 || newNick.length > 16 || /^\d+$/.test(newNick) || /[<>]/.test(newNick)) {
+    return res.status(400).json({ error: 'Invalid nickname' });
+  }
+  
+  // Проверка: не менял ли сегодня
+  const user = usersData[userId] || {};
+  const lastChange = user.lastNicknameChange || 0;
+  if (Date.now() - lastChange < 24 * 60 * 60 * 1000) {
+    return res.status(400).json({ error: 'Can change once per 24 hours' });
+  }
+  
+  // Обновляем
+  usersData[userId] = {
+    ...user,
+    customNickname: newNick,
+    lastNicknameChange: Date.now()
+  };
+  
+  // Обновляем в лидерборде
+  const player = leaderboard.find(p => p.id === userId);
+  if (player) {
+    player.name = newNick;
+  }
+  
+  res.json({ success: true });
+});
+
   // Сохраняем ВСЁ
   usersData[userId] = { 
     coins, 
@@ -50,6 +86,7 @@ app.post('/api/update-score', (req, res) => {
     caughtSuperStars,
     username
   };
+  
 
   // Обновляем лидерборд
   let player = leaderboard.find(p => p.id === userId);
