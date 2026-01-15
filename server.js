@@ -18,7 +18,9 @@ app.get('/api/user/:userId', (req, res) => {
     avatarStyle: {},
     caughtStars: 0,
     caughtSuperStars: 0,
-    username: 'Player'
+    username: 'Player',
+    customNickname: null,
+    lastNicknameChange: 0
   };
   res.json(data);
 });
@@ -40,7 +42,35 @@ app.post('/api/update-score', (req, res) => {
     return res.status(400).json({ error: 'Missing userId' });
   }
 
-  // Обновление ника
+  // Сохраняем ВСЁ
+  usersData[userId] = { 
+    coins, 
+    stars, 
+    level, 
+    avatarStyle, 
+    caughtStars, 
+    caughtSuperStars,
+    username,
+    // Сохраняем и существующие поля ника
+    customNickname: usersData[userId]?.customNickname || null,
+    lastNicknameChange: usersData[userId]?.lastNicknameChange || 0
+  };
+
+  // Обновляем лидерборд
+  let player = leaderboard.find(p => p.id === userId);
+  if (player) {
+    Object.assign(player, { coins, name: username, avatarStyle, level });
+  } else {
+    leaderboard.push({ id: userId, name: username, coins, avatarStyle, level });
+  }
+
+  leaderboard.sort((a, b) => b.coins - a.coins);
+  if (leaderboard.length > 100) leaderboard = leaderboard.slice(0, 100);
+
+  res.json({ success: true });
+});
+
+// ✅ ОТДЕЛЬНЫЙ эндпоинт для смены ника (НЕ внутри update-score!)
 app.post('/api/update-nickname', (req, res) => {
   const { userId, newNick } = req.body;
   
@@ -48,8 +78,8 @@ app.post('/api/update-nickname', (req, res) => {
     return res.status(400).json({ error: 'Missing data' });
   }
   
-  // Валидация (повторяем фронтенд-проверку)
-  if (newNick.length < 3 || newNick.length > 16 || /^\d+$/.test(newNick) || /[<>]/.test(newNick)) {
+  // Базовая валидация
+  if (newNick.length < 3 || newNick.length > 16 || /^\d+$/.test(newNick) || /[<>{}[\]]/.test(newNick)) {
     return res.status(400).json({ error: 'Invalid nickname' });
   }
   
@@ -64,7 +94,9 @@ app.post('/api/update-nickname', (req, res) => {
   usersData[userId] = {
     ...user,
     customNickname: newNick,
-    lastNicknameChange: Date.now()
+    lastNicknameChange: Date.now(),
+    // Сохраняем остальные данные
+    username: newNick // чтобы лидерборд обновился
   };
   
   // Обновляем в лидерборде
@@ -73,32 +105,6 @@ app.post('/api/update-nickname', (req, res) => {
     player.name = newNick;
   }
   
-  res.json({ success: true });
-});
-
-  // Сохраняем ВСЁ
-  usersData[userId] = { 
-    coins, 
-    stars, 
-    level, 
-    avatarStyle, 
-    caughtStars, 
-    caughtSuperStars,
-    username
-  };
-  
-
-  // Обновляем лидерборд
-  let player = leaderboard.find(p => p.id === userId);
-  if (player) {
-    Object.assign(player, { coins, username, avatarStyle, level });
-  } else {
-    leaderboard.push({ id: userId, name: username, coins, avatarStyle, level });
-  }
-
-  leaderboard.sort((a, b) => b.coins - a.coins);
-  if (leaderboard.length > 100) leaderboard = leaderboard.slice(0, 100);
-
   res.json({ success: true });
 });
 
