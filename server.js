@@ -38,30 +38,32 @@ function verifyData(initData) {
 }
 
 app.post('/api/update-score', (req, res) => {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader) {
-    return res.status(401).json({ error: 'No auth header' });
-  }
-
-  const payload = verifyData(authHeader);
-  if (!payload || !payload.user) {
-    return res.status(403).json({ error: 'Invalid auth data' });
-  }
-
   try {
-    const user = JSON.parse(decodeURIComponent(payload.user));
-    const coins = parseInt(req.body.coins) || 0;
+    const { userId, username, coins } = req.body;
+    
+    if (!userId || !username || coins == null) {
+      return res.status(400).json({ error: 'Missing data' });
+    }
 
-    let player = leaderboard.find(p => p.id === user.id);
+    let player = leaderboard.find(p => p.id === userId);
     if (player) {
       if (coins > player.coins) player.coins = coins;
     } else {
       leaderboard.push({
-        id: user.id,
-        name: user.username || user.first_name || 'Player',
+        id: userId,
+        name: username,
         coins
       });
     }
+
+    leaderboard.sort((a, b) => b.coins - a.coins);
+    if (leaderboard.length > 100) leaderboard = leaderboard.slice(0, 100);
+
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
     leaderboard.sort((a, b) => b.coins - a.coins);
     if (leaderboard.length > 100) leaderboard = leaderboard.slice(0, 100);
