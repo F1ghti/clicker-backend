@@ -1,79 +1,46 @@
-// server.js
 const express = require('express');
 const cors = require('cors');
-const crypto = require('crypto');
 
 const app = express();
-
-app.use(cors({
-  origin: '*',
-  credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-const BOT_TOKEN = '8331253569:AAGv7W3WRCbYbGyA5xbz2ZM_DdEgi9mUDWk';
-
 let leaderboard = [];
+let usersData = {};
 
-function verifyData(initData) {
-  if (!initData) return null;
-  const searchParams = new URLSearchParams(initData);
-  const hash = searchParams.get('hash');
-  if (!hash) return null;
+// Получить данные игрока
+app.get('/api/user/:userId', (req, res) => {
+  const userId = req.params.userId;
+  const data = usersData[userId] || { coins: 0 };
+  res.json(data);
+});
 
-  searchParams.delete('hash');
-  const dataCheckString = Array.from(searchParams.entries())
-    .map(([key, value]) => `${key}=${value}`)
-    .sort()
-    .join('\n');
-
-  const secret = crypto.createHash('sha256').update(BOT_TOKEN).digest();
-  const computedHash = crypto.createHmac('sha256', secret)
-    .update(dataCheckString)
-    .digest('hex');
-
-  return computedHash === hash ? Object.fromEntries(searchParams) : null;
-}
-
+// Обновить счёт
 app.post('/api/update-score', (req, res) => {
-  try {
-    const { userId, username, coins } = req.body;
-    
-    if (!userId || !username || coins == null) {
-      return res.status(400).json({ error: 'Missing data' });
-    }
-
-    let player = leaderboard.find(p => p.id === userId);
-    if (player) {
-      if (coins > player.coins) player.coins = coins;
-    } else {
-      leaderboard.push({
-        id: userId,
-        name: username,
-        coins
-      });
-    }
-
-    leaderboard.sort((a, b) => b.coins - a.coins);
-    if (leaderboard.length > 100) leaderboard = leaderboard.slice(0, 100);
-
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: 'Server error' });
+  const { userId, username, coins } = req.body;
+  if (!userId || coins == null) {
+    return res.status(400).json({ error: 'Missing data' });
   }
+
+  // Сохраняем данные
+  usersData[userId] = { coins, username };
+
+  // Обновляем лидерборд
+  let player = leaderboard.find(p => p.id === userId);
+  if (player) {
+    player.coins = coins;
+    player.name = username;
+  } else {
+    leaderboard.push({ id: userId, name: username, coins });
+  }
+
+  leaderboard.sort((a, b) => b.coins - a.coins);
+  if (leaderboard.length > 100) leaderboard = leaderboard.slice(0, 100);
+
+  res.json({ success: true });
 });
 
-    leaderboard.sort((a, b) => b.coins - a.coins);
-    if (leaderboard.length > 100) leaderboard = leaderboard.slice(0, 100);
-
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: 'Parse error' });
-  }
-});
-
+// Таблица лидеров
 app.get('/api/leaderboard', (req, res) => {
   res.json(leaderboard.slice(0, 10));
 });
